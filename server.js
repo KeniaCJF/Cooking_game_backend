@@ -41,5 +41,5 @@ app.post("/create-payment-intent", async (req, res) => {
 });
 
 app.listen(4242, () =>
-  console.log("✅ Backend Stripe listo en http://localhost:4242")
+  console.log("✅ Backend Stripe listo en https://cooking-game-backend-hyq6.onrender.com")
 );
