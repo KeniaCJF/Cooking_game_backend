@@ -14,7 +14,6 @@ app.use(express.json());
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 👇 ESTA LÍNEA ES LA IMPORTANTE
 app.use(express.static(path.join(__dirname, "public")));
 
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -26,15 +25,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 app.post("/create-payment-intent", async (req, res) => {
   try {
-    const { amount } = req.body;
-
-    if (!amount) {
-      return res.status(400).json({ error: "Monto requerido" });
-    }
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: "usd",
+      amount: 100, // 👈 $1 MXN
+      currency: "mxn",
       automatic_payment_methods: { enabled: true }
     });
 
