@@ -1,47 +1,60 @@
+// server.js (Backend)
 import express from "express";
 import Stripe from "stripe";
 import cors from "cors";
 import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
+import mongoose from "mongoose";
 
 dotenv.config();
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-app.use(express.static(path.join(__dirname, "public")));
-
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error("❌ STRIPE_SECRET_KEY no definida");
-  process.exit(1);
-}
-
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-app.post("/create-payment-intent", async (req, res) => {
+// Conexión a Mongo
+mongoose.connect(process.env.MONGO_URI).then(() => console.log("BD Conectada"));
+
+// Modelo de Producto
+const Producto = mongoose.model("Producto", new mongoose.Schema({
+  nombre: String, precio: Number, categoria: String, img: String
+}));
+
+// Ruta para obtener productos
+app.get("/api/productos", async (req, res) => {
+  const productos = await Producto.find();
+  res.json(productos);
+});
+
+// --- RUTA PARA COBRO REAL CON REDIRECCIÓN ---
+app.post("/create-checkout-session", async (req, res) => {
   try {
+    const { items } = req.body;
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: 1000, // 👈 $1 MXN
-      currency: "mxn",
-      automatic_payment_methods: { enabled: true }
+    // Formateamos los productos para Stripe
+    const line_items = items.map(item => ({
+      price_data: {
+        currency: 'mxn',
+        product_data: { name: item.nombre },
+        unit_amount: item.precio * 100, // Centavos
+      },
+      quantity: item.cantidad,
+    }));
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items,
+      mode: 'payment',
+      // Cambia estas URLs por las de tu frontend en Vercel o Netlify
+      success_url: 'http://localhost:5173/success', 
+      cancel_url: 'http://localhost:5173/',
     });
 
-    res.json({
-      clientSecret: paymentIntent.client_secret
-    });
-
+    res.json({ id: session.id });
   } catch (error) {
-    console.error("🔥 Stripe error:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.listen(4242, () =>
-  console.log("✅ Backend Stripe listo en https://cooking-game-backend-hyq6.onrender.com")
-);
+const PORT = process.env.PORT || 4242;
+app.listen(PORT, () => console.log(`Servidor listo en puerto ${PORT}`));
