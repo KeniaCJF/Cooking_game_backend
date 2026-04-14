@@ -35,8 +35,7 @@ const productoSchema = new mongoose.Schema({
   img: String
 });
 
-const Producto = mongoose.model("Producto", productoSchema);
-
+const Producto = mongoose.model("Producto", productoSchema, "Items");
 // 🔍 RUTA PRODUCTOS (con debug)
 app.get("/productos", async (req,res)=>{
   console.log("Entró a /productos");
