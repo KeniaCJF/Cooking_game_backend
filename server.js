@@ -1,62 +1,89 @@
-import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
-import Stripe from "stripe";
-import dotenv from "dotenv";
+const API = window.location.hostname.includes("localhost")
+  ? "http://localhost:3000"
+  : "https://cooking-game-backend-hyq6.onrender.com";
 
-// Cargar variables de entorno
-dotenv.config();
+let productos = [];
+let carrito = [];
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// Usar variables del .env
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-mongoose.connect(process.env.MONGO_URI)
-.then(()=>console.log("Mongo conectado"))
-.catch(err=>console.log(err));
-
-const productoSchema = new mongoose.Schema({
-  nombre: String,
-  precio: Number,
-  stock: Number,
-  categoria: String,
-  img: String
+fetch(`${API}/productos`)
+.then(res=>res.json())
+.then(data=>{
+  productos = data;
+  mostrar(productos);
 });
 
-const Producto = mongoose.model("Producto", productoSchema);
+function mostrar(lista){
+  const cont = document.getElementById("productos");
+  cont.innerHTML = "";
 
-// Obtener productos
-app.get("/productos", async (req,res)=>{
-  const productos = await Producto.find();
-  res.json(productos);
-});
+  lista.forEach(p=>{
+    cont.innerHTML += `
+      <div class="producto">
+        <img src="${p.img}">
+        <h3>${p.nombre}</h3>
+        <p>$${p.precio}</p>
+        <button onclick='agregar(${JSON.stringify(p)})'>Agregar</button>
+      </div>
+    `;
+  });
+}
 
-// Stripe pago
-app.post("/crear-pago", async (req,res)=>{
-  const {items} = req.body;
+function filtrar(cat){
+  mostrar(productos.filter(p=>p.categoria===cat));
+}
 
-  const line_items = items.map(item=>({
-    price_data:{
-      currency:"mxn",
-      product_data:{name:item.nombre},
-      unit_amount:item.precio*100
-    },
-    quantity:item.cantidad
-  }));
+// 🧠 carrito inteligente
+function agregar(prod){
+  const existe = carrito.find(p=>p._id === prod._id);
 
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types:["card"],
-    line_items,
-    mode:"payment",
-    success_url:"https://tu-frontend.onrender.com/success.html",
-    cancel_url:"https://tu-frontend.onrender.com/cancel.html"
+  if(existe){
+    existe.cantidad++;
+  } else {
+    carrito.push({...prod, cantidad:1});
+  }
+
+  renderCarrito();
+}
+
+function renderCarrito(){
+  const cont = document.getElementById("carritoLista");
+  const totalEl = document.getElementById("total");
+
+  cont.innerHTML = "";
+  let total = 0;
+
+  carrito.forEach(p=>{
+    total += p.precio * p.cantidad;
+
+    cont.innerHTML += `
+      <p>
+        ${p.nombre} x${p.cantidad}
+        <button onclick="eliminar('${p._id}')">❌</button>
+      </p>
+    `;
   });
 
-  res.json({id:session.id});
-});
+  totalEl.innerText = "Total: $" + total;
+}
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT,()=>console.log(`Servidor en puerto ${PORT}`));
+function eliminar(id){
+  carrito = carrito.filter(p=>p._id !== id);
+  renderCarrito();
+}
+
+function cancelar(){
+  carrito = [];
+  renderCarrito();
+}
+
+async function pagar(){
+  const res = await fetch(`${API}/crear-pago`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({items:carrito})
+  });
+
+  const data = await res.json();
+
+  window.location = `https://checkout.stripe.com/pay/${data.id}`;
+}
