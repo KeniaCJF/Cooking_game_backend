@@ -73,7 +73,7 @@ app.post("/crear-pago", async (req, res) => {
         product_data: { 
           name: item.nombre || "Producto" 
         },
-        unit_amount: 100 // $1.00 MXN (Stripe usa centavos)
+        unit_amount: 1000 // $1.00 MXN (Stripe usa centavos)
       },
       quantity: item.cantidad || 1
     }));
