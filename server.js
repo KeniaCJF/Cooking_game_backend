@@ -82,8 +82,8 @@ app.post("/crear-pago", async (req, res) => {
       payment_method_types: ["card"],
       line_items,
       mode: "payment",
-      success_url: `${frontendUrl}/success.html`,
-      cancel_url: `${frontendUrl}/cancel.html`,
+success_url: `${frontendUrl}/index.html?status=success`,
+cancel_url: `${frontendUrl}/index.html?status=cancel`,
     });
 
     console.log("✅ Sesión de Stripe creada:", session.id);
