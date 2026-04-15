@@ -8,25 +8,23 @@ dotenv.config();
 
 const app = express();
 
-// 🔥 CORS (solución real)
+// 🔥 CORS (permite tu frontend)
 app.use(cors({
-  origin: [
-    "https://online-shop-imh6.onrender.com"
-  ],
+  origin: ["https://online-shop-imh6.onrender.com"],
   methods: ["GET","POST"],
 }));
 
 app.use(express.json());
 
-// Stripe
+// 🔐 Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Mongo
+// 🟢 MongoDB (apunta a CafeShop)
 mongoose.connect(process.env.MONGO_URI)
 .then(()=>console.log("Mongo conectado"))
-.catch(err=>console.log(err));
+.catch(err=>console.log("Error Mongo:", err));
 
-// Modelo
+// 📦 Modelo (usa colección real "Items")
 const productoSchema = new mongoose.Schema({
   nombre: String,
   precio: Number,
@@ -36,7 +34,8 @@ const productoSchema = new mongoose.Schema({
 });
 
 const Producto = mongoose.model("Producto", productoSchema, "Items");
-// 🔍 RUTA PRODUCTOS (con debug)
+
+// 🔍 Obtener productos
 app.get("/productos", async (req,res)=>{
   console.log("Entró a /productos");
 
@@ -46,23 +45,25 @@ app.get("/productos", async (req,res)=>{
 
     res.json(productos);
   } catch (error) {
-    console.log(error);
+    console.log("Error productos:", error);
     res.status(500).json({error: "Error en servidor"});
   }
 });
 
-// 💳 Stripe pago
+// 💳 Crear pago (SIEMPRE $1 MXN)
 app.post("/crear-pago", async (req,res)=>{
   try {
     const {items} = req.body;
 
+    console.log("Items recibidos:", items);
+
     const line_items = items.map(item=>({
       price_data:{
         currency:"mxn",
-        product_data:{name:item.nombre},
-        unit_amount:item.precio * 100
+        product_data:{ name: item.nombre },
+        unit_amount: 100 // 🔥 siempre $1 MXN
       },
-      quantity:item.cantidad
+      quantity: item.cantidad
     }));
 
     const session = await stripe.checkout.sessions.create({
@@ -73,15 +74,17 @@ app.post("/crear-pago", async (req,res)=>{
       cancel_url:`${process.env.FRONTEND_URL}/cancel.html`
     });
 
-    res.json({id:session.id});
+    console.log("Sesión creada:", session.id);
+
+    res.json({ id: session.id });
 
   } catch (error) {
-    console.log(error);
+    console.log("ERROR STRIPE:", error);
     res.status(500).json({error:"Error en pago"});
   }
 });
 
-// Puerto (IMPORTANTE PARA RENDER)
+// 🚀 Puerto Render
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, ()=>{
